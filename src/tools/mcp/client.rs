@@ -117,7 +117,10 @@ impl McpClient {
     /// The config must use HTTP transport (the default); for stdio/UDS use `new_with_transport`.
     ///
     /// Returns an error if the config uses a non-HTTP transport.
-    pub fn new_with_config(config: McpServerConfig) -> Result<Self, ToolError> {
+    pub fn new_with_config(
+        config: McpServerConfig,
+        session_manager: Arc<McpSessionManager>,
+    ) -> Result<Self, ToolError> {
         if !matches!(
             config.effective_transport(),
             crate::tools::mcp::config::EffectiveTransport::Http
@@ -127,10 +130,10 @@ impl McpClient {
                     .to_string(),
             ));
         }
-        let transport = Arc::new(HttpMcpTransport::new(
-            config.url.clone(),
-            config.name.clone(),
-        ));
+        let transport = Arc::new(
+            HttpMcpTransport::new(config.url.clone(), config.name.clone())
+                .with_session_manager(session_manager),
+        );
 
         Ok(Self {
             transport,
@@ -774,7 +777,8 @@ mod tests {
         headers.insert("X-Custom".to_string(), "value".to_string());
 
         let config = McpServerConfig::new("test", "http://localhost:8080").with_headers(headers);
-        let client = McpClient::new_with_config(config.clone()).expect("HTTP config should work");
+        let client = McpClient::new_with_config(config.clone(), Arc::new(McpSessionManager::new()))
+            .expect("HTTP config should work");
 
         assert_eq!(client.server_name(), "test");
         assert_eq!(client.server_url(), "http://localhost:8080");
@@ -786,7 +790,8 @@ mod tests {
     #[test]
     fn test_new_with_config_no_headers() {
         let config = McpServerConfig::new("bare", "http://localhost:9090");
-        let client = McpClient::new_with_config(config).expect("HTTP config should work");
+        let client = McpClient::new_with_config(config, Arc::new(McpSessionManager::new()))
+            .expect("HTTP config should work");
 
         assert_eq!(client.server_name(), "bare");
         assert!(client.custom_headers.is_empty());
@@ -1174,7 +1179,7 @@ mod tests {
             vec!["hello".to_string()],
             HashMap::new(),
         );
-        let result = McpClient::new_with_config(config);
+        let result = McpClient::new_with_config(config, Arc::new(McpSessionManager::new()));
         let err = result
             .err()
             .expect("stdio config must be rejected")

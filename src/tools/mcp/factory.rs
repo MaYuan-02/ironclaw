@@ -90,7 +90,7 @@ pub async fn create_client_from_config(
                         user_id,
                     ))
                 } else {
-                    Ok(McpClient::new_with_config(server)
+                    Ok(McpClient::new_with_config(server, session_manager.clone())
                         .map_err(|e| McpFactoryError::InvalidConfig {
                             name: server_name.clone(),
                             reason: e.to_string(),
@@ -98,7 +98,7 @@ pub async fn create_client_from_config(
                         .with_session_manager(Arc::clone(session_manager)))
                 }
             } else {
-                Ok(McpClient::new_with_config(server)
+                Ok(McpClient::new_with_config(server, session_manager.clone())
                     .map_err(|e| McpFactoryError::InvalidConfig {
                         name: server_name,
                         reason: e.to_string(),
